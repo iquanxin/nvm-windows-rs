@@ -20,8 +20,8 @@ fn main() {
 
     match args[1].as_str() {
         "install" => install(&detail, &arch),
-        "uninstall" => uninstall(),
-        "use" => apply(),
+        "uninstall" => uninstall(&detail),
+        "use" => use_fn(&detail),
         "list" => list(),
         "-V" => version(),
         "--version" => version(),
@@ -30,15 +30,17 @@ fn main() {
 }
 
 fn install(version: &str, arch: &str) {
+    let nvm_home = std::env::var("NVM_HOME").unwrap();
+
     let mut version = version.replace("v", "");
     version = version.replace("-", "");
-    let nvm_home = std::env::var("NVM_HOME").unwrap();
+
     let install_path = Path::new(&nvm_home).join("v".to_string() + &version);
 
     let node_path = install_path.join("node.exe");
 
     if util::is_version_installed(&node_path) {
-        println!("Version {} is already installed.", version);
+        println!("\nVersion {} is already installed.", version);
         return;
     }
 
@@ -61,11 +63,109 @@ fn install(version: &str, arch: &str) {
     );
 }
 
-fn uninstall() {}
+fn uninstall(version: &str) {
+    let nvm_home = std::env::var("NVM_HOME").unwrap();
 
-fn apply() {}
+    let mut version = version.replace("v", "");
+    version = version.replace("-", "");
 
-fn list() {}
+    let install_path = Path::new(&nvm_home).join("v".to_string() + &version);
+
+    if !install_path.exists() {
+        println!("\nNodejs version v{} is not installed.", version);
+        return;
+    }
+
+    std::fs::remove_dir_all(install_path).expect("Please try to use administrative privileges");
+
+    println!("\nUninstalling nodejs v{version}... done");
+}
+
+fn use_fn(version: &str) {
+    let nvm_home = std::env::var("NVM_HOME").unwrap();
+
+    let mut version = version.replace("v", "");
+    version = version.replace("-", "");
+
+    let install_path = Path::new(&nvm_home).join("v".to_string() + &version);
+
+    let node_path = install_path.join("node.exe");
+
+    if !util::is_version_installed(&node_path) {
+        println!("\nNodejs version {} is not installed.", version);
+        return;
+    }
+
+    let symlink = std::env::var("NVM_SYMLINK").unwrap();
+
+    match std::fs::metadata(&symlink) {
+        Ok(val) => {
+            if val.is_dir() {
+                std::fs::remove_dir_all(&symlink).expect("remove dir all failed");
+            }
+        }
+        Err(_err) => {
+            std::fs::remove_dir_all(&symlink).expect("remove dir all failed");
+        }
+    }
+
+    if let Err(_err) = std::os::windows::fs::symlink_dir(&install_path, &symlink) {
+        if let Err(err) = std::process::Command::new("elevate.cmd")
+            .arg("cmd")
+            .arg("/C")
+            .arg("mklink")
+            .arg("/D")
+            .arg(symlink)
+            .arg(install_path)
+            .stderr(std::process::Stdio::null())
+            .spawn()
+        {
+            println!("failed to execute process. err:{}", err);
+            return;
+        }
+    };
+
+    println!("\nNow using nodejs v{}", version);
+}
+
+fn list() {
+    let nvm_home = std::env::var("NVM_HOME").unwrap();
+
+    let nvm_home_dir_list = std::fs::read_dir(nvm_home).unwrap();
+    let mut dir_list = nvm_home_dir_list
+        .filter(|x| x.as_ref().unwrap().path().is_dir())
+        .map(|res| res.map(|e| e.path()))
+        .collect::<Result<Vec<_>, std::io::Error>>()
+        .unwrap();
+    dir_list.sort();
+
+    let cmd_node_v = std::process::Command::new("node").arg("-v").output();
+    let mut current_use_node_version = String::from("");
+    if let Ok(val) = cmd_node_v {
+        current_use_node_version = String::from_utf8_lossy(&val.stdout).to_string();
+    } else {
+        println!("err: failed to execute process node -v");
+    }
+    current_use_node_version = current_use_node_version.replace("\r\n", "");
+
+    println!("");
+
+    for pb in dir_list {
+        let node_version = pb.file_name().unwrap().to_string_lossy().to_string();
+        let mut output = String::from("");
+        if node_version.starts_with("v") {
+            if node_version.eq(&current_use_node_version) {
+                output += "  * ";
+                output = output + &node_version + " (Currently using executable)";
+            } else {
+                output += "    ";
+                output += &node_version;
+            }
+
+            println!("{output}");
+        }
+    }
+}
 
 fn version() {
     println!("nvm version: 0.1.0");
