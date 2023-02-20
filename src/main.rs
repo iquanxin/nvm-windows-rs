@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{io::ErrorKind, path::Path};
 
 mod node;
 mod util;
@@ -106,8 +106,10 @@ fn use_fn(version: &str) {
                 std::fs::remove_dir_all(&symlink).expect("remove dir all failed");
             }
         }
-        Err(_err) => {
-            std::fs::remove_dir_all(&symlink).expect("remove dir all failed");
+        Err(err) => {
+            if err.kind() != ErrorKind::NotFound {
+                println!("Get NVM_SYMLINK metadata err:{:?}", err);
+            }
         }
     }
 
@@ -145,8 +147,6 @@ fn list() {
     let mut current_use_node_version = String::from("");
     if let Ok(val) = cmd_node_v {
         current_use_node_version = String::from_utf8_lossy(&val.stdout).to_string();
-    } else {
-        println!("err: failed to execute process node -v");
     }
     current_use_node_version = current_use_node_version.replace("\r\n", "");
 
