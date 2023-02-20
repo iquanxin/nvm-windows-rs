@@ -3,6 +3,8 @@ use std::path::Path;
 mod node;
 mod util;
 
+static VERSION: &str = "0.1.0";
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
@@ -24,7 +26,7 @@ fn main() {
         "use" => use_fn(&detail),
         "list" => list(),
         "-V" => version(),
-        "--version" => version(),
+        "version" => version(),
         _ => help(),
     }
 }
@@ -168,11 +170,11 @@ fn list() {
 }
 
 fn version() {
-    println!("nvm version: 0.1.0");
+    println!("{VERSION}");
 }
 
 fn help() {
-    println!("\nnvm version: {}", "0.1.0");
+    println!("\nnvm version: {VERSION}");
     println!("\nUsage:");
     println!(" ");
     println!("  nvm install <version>    : The version can be a specific version. (default: install system arch)");
