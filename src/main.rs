@@ -46,13 +46,6 @@ fn install(version: &str, arch: &str) {
         return;
     }
 
-    if install_path.exists() {
-        if !install_path.is_dir() {
-            println!("Path: {:?} already exists and is a file.", install_path);
-            return;
-        }
-    }
-
     let url = node::get_nodejs_url(&version, &arch);
 
     println!("\nDownloading nodejs version: v{} ({})", version, arch);
@@ -103,7 +96,7 @@ fn use_fn(version: &str) {
     match std::fs::metadata(&symlink) {
         Ok(val) => {
             if val.is_dir() {
-                std::fs::remove_dir_all(&symlink).expect("remove dir all failed");
+                std::fs::remove_dir_all(&symlink).expect("Delete NVM_SYMLINK dir all failed");
             }
         }
         Err(err) => {
@@ -113,7 +106,7 @@ fn use_fn(version: &str) {
         }
     }
 
-    if let Err(_err) = std::os::windows::fs::symlink_dir(&install_path, &symlink) {
+    if let Err(_) = std::os::windows::fs::symlink_dir(&install_path, &symlink) {
         if let Err(err) = std::process::Command::new("elevate.cmd")
             .arg("cmd")
             .arg("/C")
